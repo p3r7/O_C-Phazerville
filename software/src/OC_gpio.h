@@ -32,6 +32,8 @@ extern bool SDcard_Ready;
 #define OC_GPIO_TRx_PINMODE INPUT_PULLUP
 #define OC_GPIO_ENC_PINMODE INPUT_PULLUP
 
+#define I2C_ADDRESS 0x55
+
 /* local copy of pinMode (cf. cores/pins_teensy.c), using faster slew rate */
 // TODO: is this necessary? -NJM
 

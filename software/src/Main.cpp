@@ -25,6 +25,17 @@
 
 #include <Arduino.h>
 #include <EEPROM.h>
+#ifdef ARDUINO_TEENSY40
+//#include <i2c_t3.h>
+#include <i2c_driver.h>
+#include <i2c_driver_wire.h>
+
+#define MEM_LEN 256                 // save I2C data in 8 bit chunks
+uint8_t i2cData[MEM_LEN];           // save I2C data in variable "i2cData"
+volatile uint8_t received;          // variable to store if there are received I2C messages
+void i2cReceiveEvent(int count); // function for receiving I2C messages, count = number of bites
+void i2cRequestEvent(void);         // function for receiving I2C messages, count = number of bites
+#endif
 
 #include "OC_core.h"
 #include "OC_apps.h"
@@ -225,6 +236,17 @@ void setup() {
 
   if (start_cal)
     OC::start_calibration();
+
+#ifdef ARDUINO_TEENSY40
+  //TxHelper::SetPorts(4);
+  //TxHelper::SetModes(3);
+
+  SERIAL_PRINTLN("Enabling i2c enabled in SLAVE mode");
+  // Wire2.begin(I2C_SLAVE, I2C_ADDRESS, I2C_PINS_24_25, I2C_PULLUP_EXT, 400000);
+  Wire2.begin(I2C_ADDRESS);
+  Wire2.onReceive(i2cReceiveEvent);
+  Wire2.onRequest(i2cRequestEvent);
+#endif
 }
 
 /*  ---------    main loop  --------  */
@@ -396,4 +418,93 @@ void FASTRUN loop() {
   }
 }
 
+/*  ---------    i2c callback  --------  */
 
+/*
+  void i2cWrite(size_t len)
+  {
+
+  // TODO: use OC::apps::current_app.id or OC::apps::current_app.name
+
+  D(Serial.printf("i2c Write (%d)\n", len));
+
+  OC::apps::set_current_app(0);
+
+  // to get menu_id of an app: OC::apps::index_of(app_id);
+  // to get acces to app object: App myApp = OC::apps::find(app_id);
+
+
+  return;
+
+  // parse the response
+  TxResponse response = TxHelper::Parse(len);
+
+  // true command our setting of the input for a read?
+  if (len == 1)
+  {
+
+  // use a helper to decode the command
+  TxIO io = TxHelper::DecodeIO(response.Command);
+
+  D(Serial.printf("Port: %d; Mode: %d [%d]\n", io.Port, io.Mode, response.Command));
+
+  // this is the single byte that sets the active input
+  activeInput = io.Port;
+  activeMode = io.Mode;
+  }
+  else
+  {
+  // act on the command
+  actOnCommand(response.Command, response.Output, response.Value);
+  }
+  }
+
+void actOnCommand(byte cmd, byte out, int value) {}
+
+void i2cReadRequest()
+{
+
+    SERIAL_PRINTLN("i2c Read\n");
+
+    // get and cast the value
+    uint16_t shiftReady = 0;
+    switch (activeMode)
+        {
+        case 1:
+            shiftReady = (uint16_t)currentValue[activeInput];
+            break;
+        case 2:
+            shiftReady = (uint16_t)currentValue[activeInput];
+            break;
+        default:
+            shiftReady = (uint16_t)currentValue[activeInput];
+            break;
+        }
+
+    SERIAL_PRINTLN("delivering: %d; value: %d [%d]\n", activeInput, currentValue[activeInput], shiftReady);
+
+    // send the puppy as a pair of bytes
+    Wire2.write(shiftReady >> 8);
+    Wire2.write(shiftReady & 255);
+
+// /*/
+
+
+#ifdef ARDUINO_TEENSY40
+
+// handler for receiving I2C messages
+void i2cReceiveEvent(int count) {
+    for(int i=0; i < count; i++) {
+        i2cData[i] = Wire2.read();
+    }
+    received = count;
+
+    OC::apps::set_current_app(0);
+}
+
+// hanlder for receiving I2C request messages
+void i2cRequestEvent() {
+    // opFunctions(true, i2cData);
+}
+
+#endif
